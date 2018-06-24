@@ -10,24 +10,34 @@ class RofiTunes:
         self.rofi = Rofi()
         self.songs = []
 
-    def build_library(self, folder=f"{os.environ.get('HOME')}/Music"):
-        for folderName, subfolders, filenames in os.walk(folder):
-            if subfolders:
-                for subfolder in subfolders:
-                    self.build_library(subfolder)
-            for filename in filenames:
-                if 'mp3' in filename:
-                    self.songs.append("{}/{}".format(folderName, filename))
-
-    def remove_duplicates(self):
-        self.songs = list(set(self.songs))
+    def build_library(self):
+        proc = subprocess.Popen(['mpc', 'listall'], stdout=subprocess.PIPE)
+        for song in proc.stdout.readlines():
+            self.songs.append(song.decode())
 
     def build_menu(self):
-        self.rofi.select(">", self.songs, key1=("Alt+1", "Description"))
+        choice = self.rofi.select(">", self.songs, key1=("Alt+1", "Description"))
+        print(choice)
+        if choice[1] >= 1:
+            # NOTE: A hotkey was pushed
+            pass
+        elif choice[0] != -1:
+            return self.play_song(choice[0])
 
+    def play_song(self, choice):
+        proc = subprocess.Popen(['mpc', 'play', str(choice)], stdout=subprocess.PIPE, stderr = subprocess.PIPE)
+        print(self.songs[choice].strip())
+        try: 
+            outs, errs = proc.communicate(timeout=15)
+            print(outs.decode())
+            print(errs.decode())
+        except TimeoutError:
+            proc.kill()
+            outs, errs = proc.communicate()
+            print(outs.decode())
+            print(errs.decode())
     
 if __name__ == '__main__':
     r = RofiTunes()
     r.build_library()
-    r.remove_duplicates()
     r.build_menu()
